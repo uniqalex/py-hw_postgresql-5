@@ -126,6 +126,8 @@ if __name__ == '__main__':
     user.modify_user('Иванка', 'Иванова', 'ivanova@gmail.com', user1_id)
     user.del_phone_number('+79258862178')
     user.del_user(user1_id)
+    #Finish
+    user.conn.close()
 
 
 
