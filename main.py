@@ -46,17 +46,6 @@ class PGConnection:
         res = self.cur.fetchone()[0]
         return res
 
-    def modify_user_all(self, name, lastname, email, user_id):
-        self.cur.execute("""
-                update users
-                set 
-                     name = %s
-                    ,lastname = %s
-                    ,email = %s
-                where user_id = %s;
-        """, (name, lastname, email, user_id,))
-        self.conn.commit()
-
     def modify_user_name(self, name, user_id):
         self.cur.execute("""
                         update users
@@ -83,6 +72,47 @@ class PGConnection:
                         where user_id = %s;
                 """, (email, user_id,))
         self.conn.commit()
+
+    def modify_user(self, **kwargs):
+        update_fields = {'name', 'lastname', 'email', 'user_id'} & set(kwargs)
+        if len(update_fields) == 0:
+            return None
+
+        if kwargs.get('name') is not None and kwargs.get('lastname') is not None and kwargs.get('email') is not None \
+                and kwargs.get('user_id') is not None:
+            self.cur.execute("""
+                            update users
+                            set 
+                                 name = %s
+                                ,lastname = %s
+                                ,email = %s
+                            where user_id = %s;
+                    """, (kwargs['name'], kwargs['lastname'], kwargs['email'], kwargs['user_id'],))
+            self.conn.commit()
+        elif kwargs.get('name') is not None and kwargs.get('user_id') is not None:
+            self.cur.execute("""
+                            update users
+                            set 
+                                 name = %s
+                            where user_id = %s;
+                    """, (kwargs['name'], kwargs['user_id'],))
+            self.conn.commit()
+        elif kwargs.get('lastname') is not None and kwargs.get('user_id') is not None:
+            self.cur.execute("""
+                            update users
+                            set 
+                                 lastname = %s
+                            where user_id = %s;
+                    """, (kwargs['lastname'], kwargs['user_id'],))
+            self.conn.commit()
+        elif kwargs.get('email') is not None and kwargs.get('user_id') is not None:
+            self.cur.execute("""
+                            update users
+                            set 
+                                 email = %s
+                            where user_id = %s;
+                    """, (kwargs['email'], kwargs['user_id'],))
+            self.conn.commit()
 
     def del_phone_number(self, phone_number):
         self.cur.execute("""
@@ -142,10 +172,18 @@ class PGConnection:
         return self.cur.fetchall()
 
     def get_user(self, **kwargs):
-        seek_keys = {'name', 'lastname', 'email'} & set(kwargs)
+        seek_keys = {'name', 'lastname', 'email', 'phone_number'} & set(kwargs)
         if len(seek_keys) == 0:
             return None
-        if kwargs.get('name') is not None and kwargs.get('lastname') is not None and kwargs.get('email') is not None:
+        if kwargs.get('phone_number') is not None:
+            self.cur.execute("""
+                                select u.user_id, u.name, u.lastname, u.email
+                                from users u
+                                inner join user_contact uc ON u.user_id = uc.user_id
+                                where uc.phone_number = %s
+                        """, (kwargs['phone_number'],))
+            return self.cur.fetchall()
+        elif kwargs.get('name') is not None and kwargs.get('lastname') is not None and kwargs.get('email') is not None:
             self.cur.execute("""
                                         select u.user_id, u.name, u.lastname, u.email
                                         from users u
@@ -206,17 +244,20 @@ if __name__ == '__main__':
     print(user.get_user_by_email('kimchhi@yahoo.com'))
     print(user.get_user_by_names('Ivan', 'Petrov'))
 
-    print('For test: *overload method')
+    print('For experiment: *overload method')
+    print(user.get_user(phone_number='+79258862178'))
     print(user.get_user(email='kimchhi@yahoo.com', name='Dzan', lastname='Yang'))
     print(user.get_user(name='Ivan', lastname='Petrov'))
     print(user.get_user(name='Ivan'))
     print(user.get_user(email='kimchhi@yahoo.com'))
 
     #Изменения данных пользователя
-    user.modify_user_all('Иванка', 'Иванова', 'ivanova@gmail.com', user1_id)
     user.modify_user_email('ivanov6@gmail.com', user1_id)
     user.modify_user_name('Sidor', user2_id)
     user.modify_user_lastname('Yung', user3_id)
+    #Через *overload метод
+    user.modify_user(name='Иванка', lastname='Иванова', email='ivanova@gmail.com', user_id=user1_id)
+    user.modify_user(email='petroff_66@gmail.com', user_id=user4_id)
 
     #Изменение номера телефона
     user.del_phone_number('+79258862178')
