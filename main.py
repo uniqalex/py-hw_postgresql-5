@@ -141,6 +141,52 @@ class PGConnection:
                     """, (email,))
         return self.cur.fetchall()
 
+    def get_user(self, **kwargs):
+        seek_keys = {'name', 'lastname', 'email'} & set(kwargs)
+        if len(seek_keys) == 0:
+            return None
+        if kwargs.get('name') is not None and kwargs.get('lastname') is not None and kwargs.get('email') is not None:
+            self.cur.execute("""
+                                        select u.user_id, u.name, u.lastname, u.email
+                                        from users u
+                                        where name = %s
+                                        and lastname = %s
+                                        and email = %s
+                                """, (kwargs['name'], kwargs['lastname'], kwargs['email'],))
+            return self.cur.fetchall()
+        elif kwargs.get('name') is not None and kwargs.get('lastname') is not None:
+            self.cur.execute("""
+                                        select u.user_id, u.name, u.lastname, u.email
+                                        from users u
+                                        where name = %s
+                                        and lastname = %s
+                                """, (kwargs['name'], kwargs['lastname'],))
+            return self.cur.fetchall()
+
+        elif kwargs.get('email') is not None:
+            self.cur.execute("""
+                                        select u.user_id, u.name, u.lastname, u.email
+                                        from users u
+                                        where email = %s
+                                """, (kwargs['email'],))
+            return self.cur.fetchall()
+
+        elif kwargs.get('name') is not None:
+            self.cur.execute("""
+                                select u.user_id, u.name, u.lastname, u.email
+                                from users u
+                                where name = %s
+                        """, (kwargs['name'],))
+            return self.cur.fetchall()
+
+        elif kwargs.get('lastname') is not None:
+            self.cur.execute("""
+                                select u.user_id, u.name, u.lastname, u.email
+                                from users u
+                                where lastname = %s
+                        """, (kwargs['lastname'],))
+            return self.cur.fetchall()
+
 if __name__ == '__main__':
     user = PGConnection(db_name='postgres', user_name='postgres', password='asd13asd')
     user.create_db()
@@ -159,6 +205,12 @@ if __name__ == '__main__':
     print(user.get_user_by_phone('+79256661122'))
     print(user.get_user_by_email('kimchhi@yahoo.com'))
     print(user.get_user_by_names('Ivan', 'Petrov'))
+
+    print('For test: *overload method')
+    print(user.get_user(email='kimchhi@yahoo.com', name='Dzan', lastname='Yang'))
+    print(user.get_user(name='Ivan', lastname='Petrov'))
+    print(user.get_user(name='Ivan'))
+    print(user.get_user(email='kimchhi@yahoo.com'))
 
     #Изменения данных пользователя
     user.modify_user_all('Иванка', 'Иванова', 'ivanova@gmail.com', user1_id)
