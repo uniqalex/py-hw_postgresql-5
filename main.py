@@ -7,126 +7,171 @@ class PGConnection:
         self.user = user_name
         self.password = password
         self.conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-
-    # def connect(self):
-    #     conn = psycopg2.connect(database=self.database, user=self.user, password=self.password)
-    #     return conn
+        self.cur = self.conn.cursor()
 
     def create_db(self):
-        with self.conn.cursor() as cur:
-            cur.execute("""
-                            DROP TABLE IF EXISTS user_contact;
-                        """)
-            cur.execute("""DROP TABLE IF EXISTS users;""")
+        self.cur.execute("""DROP TABLE IF EXISTS user_contact;""")
+        self.cur.execute("""DROP TABLE IF EXISTS users;""")
 
-            cur.execute("""
+        self.cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     user_id SERIAL PRIMARY KEY
                     , name varchar(50) NOT NULL
                     , lastname varchar(50) NOT NULL
                     , email varchar(50) NOT NULL
-                );
-            """)
-            cur.execute("""
+                );""")
+        self.cur.execute("""
                             CREATE TABLE IF NOT EXISTS user_contact (
                                 contact_id SERIAL PRIMARY KEY
                                 , phone_number varchar(50) NOT NULL CONSTRAINT UNIQUE_phone_number UNIQUE
                                 , user_id int NOT NULL CONSTRAINT FK_user_id references users(user_id) 
-                            );
-                        """)
+                            );""")
         self.conn.commit()
 
     def create_user(self, name, lastname, email):
-        with self.conn.cursor() as cur:
-            cur.execute("""
+        self.cur.execute("""
                 insert into users(name, lastname, email)
                 values(%s, %s, %s) RETURNING user_id;
             """, (name, lastname, email,))
-            res = cur.fetchone()[0]
+        res = self.cur.fetchone()[0]
         self.conn.commit()
         return res
 
     def add_phone_number(self, phone_number, user_id):
-        with self.conn.cursor() as cur:
-            cur.execute("""
+        self.cur.execute("""
                 insert into user_contact(phone_number, user_id)
                 values(%s, %s) RETURNING contact_id;
             """, (phone_number, user_id,))
-            self.conn.commit()
-            res = cur.fetchone()[0]
+        self.conn.commit()
+        res = self.cur.fetchone()[0]
         return res
 
-    def modify_user(self, name, lastname, email, user_id):
-        with self.conn.cursor() as cur:
-            cur.execute("""
+    def modify_user_all(self, name, lastname, email, user_id):
+        self.cur.execute("""
                 update users
                 set 
                      name = %s
-                    ,lastName = %s
+                    ,lastname = %s
                     ,email = %s
                 where user_id = %s;
-            """, (name, lastname, email, user_id,))
-            self.conn.commit()
+        """, (name, lastname, email, user_id,))
+        self.conn.commit()
+
+    def modify_user_name(self, name, user_id):
+        self.cur.execute("""
+                        update users
+                        set 
+                             name = %s
+                        where user_id = %s;
+                """, (name, user_id,))
+        self.conn.commit()
+
+    def modify_user_lastname(self, lastname, user_id):
+        self.cur.execute("""
+                        update users
+                        set 
+                             lastname = %s
+                        where user_id = %s;
+                """, (lastname, user_id,))
+        self.conn.commit()
+
+    def modify_user_email(self, email, user_id):
+        self.cur.execute("""
+                        update users
+                        set 
+                             email = %s
+                        where user_id = %s;
+                """, (email, user_id,))
+        self.conn.commit()
 
     def del_phone_number(self, phone_number):
-        with self.conn.cursor() as cur:
-            cur.execute("""
+        self.cur.execute("""
                 delete from user_contact
                 where 
                      phone_number = %s;
-            """, (phone_number,))
-            self.conn.commit()
+        """, (phone_number,))
+        self.conn.commit()
 
     def del_user(self, user_id):
-        with self.conn.cursor() as cur:
-            cur.execute("""
+        self.cur.execute("""
                 delete from users
                 where user_id = %s;
-            """, (user_id,))
-            self.conn.commit()
+        """, (user_id,))
+        self.conn.commit()
 
-    def find_user(self, name, lastname, email, phone_number):
-        if phone_number is None:
-            with self.conn.cursor() as cur:
-                cur.execute("""
-                    select u.user_id, u.name, u.lastname, u.email
-                    from users u
-                    where 
-                        name = %s
-                    and lastname = %s
-                    and email = %s
-                """, (name, lastname, email,))
-                res = cur.fetchall()
-            return res
-        else:
-            with self.conn.cursor() as cur:
-                cur.execute("""
-                    select u.user_id, u.name, u.lastname, u.email
-                    from users u
-                    inner join user_contact uc ON u.user_id = uc.user_id
-                    where uc.phone_number = %s
-                """, (phone_number,))
-                res = cur.fetchall()
-            return res
+    def get_user_by_phone(self, phone_number):
+        self.cur.execute("""
+                            select u.user_id, u.name, u.lastname, u.email
+                            from users u
+                            inner join user_contact uc ON u.user_id = uc.user_id
+                            where uc.phone_number = %s
+                    """, (phone_number,))
+        return self.cur.fetchall()
+
+    def get_user_by_name(self, name):
+        self.cur.execute("""
+                            select u.user_id, u.name, u.lastname, u.email
+                            from users u
+                            where name = %s
+                    """, (name,))
+        return self.cur.fetchall()
+
+    def get_user_by_lastname(self, lastname):
+        self.cur.execute("""
+                            select u.user_id, u.name, u.lastname, u.email
+                            from users u
+                            where lastname = %s
+                    """, (lastname,))
+        return self.cur.fetchall()
+
+    def get_user_by_names(self, name, lastname):
+        self.cur.execute("""
+                            select u.user_id, u.name, u.lastname, u.email
+                            from users u
+                            where name = %s
+                            and lastname = %s
+                    """, (name, lastname,))
+        return self.cur.fetchall()
+
+    def get_user_by_email(self, email):
+        self.cur.execute("""
+                            select u.user_id, u.name, u.lastname, u.email
+                            from users u
+                            where email = %s
+                    """, (email,))
+        return self.cur.fetchall()
 
 if __name__ == '__main__':
     user = PGConnection(db_name='postgres', user_name='postgres', password='asd13asd')
     user.create_db()
+
+    #Создание
     user1_id = user.create_user('Ivan', 'Ivanov', 'ivanov@gmail.com')
-    user2_id = user.create_user('Sidorov', 'Petr', 'sidorov@gmail.com')
-    user3_id = user.create_user('Dzan', 'Yang', 'kimchhi@yahoo.com')
+    user2_id = user.create_user('Petr', 'Sidorov', 'sidorov@gmail.com')
+    user3_id = user.create_user(name='Dzan', lastname='Yang', email='kimchhi@yahoo.com')
+    user4_id = user.create_user('Ivan', 'Petrov', 'petroff@gmail.com')
+
     phone_number1_id = user.add_phone_number('+79258862178', user1_id)
     phone_number2_id = user.add_phone_number('+79256661122', user2_id)
 
-    #ищем либо по фамилии
-    res = user.find_user(name='Ivan', lastname='Ivanov', email='ivanov@gmail.com', phone_number=None)
-    res1 = user.find_user(name=None, lastname=None, email=None, phone_number='+79258862178')
-    print(res)
-    print(res1)
-    user.modify_user('Иванка', 'Иванова', 'ivanova@gmail.com', user1_id)
+    #Поиск
+    print(user.get_user_by_name('Ivan'))
+    print(user.get_user_by_phone('+79256661122'))
+    print(user.get_user_by_email('kimchhi@yahoo.com'))
+    print(user.get_user_by_names('Ivan', 'Petrov'))
+
+    #Изменения данных пользователя
+    user.modify_user_all('Иванка', 'Иванова', 'ivanova@gmail.com', user1_id)
+    user.modify_user_email('ivanov6@gmail.com', user1_id)
+    user.modify_user_name('Sidor', user2_id)
+    user.modify_user_lastname('Yung', user3_id)
+
+    #Изменение номера телефона
     user.del_phone_number('+79258862178')
     user.del_user(user1_id)
+
     #Finish
+    user.cur.close()
     user.conn.close()
 
 
